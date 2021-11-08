@@ -43,6 +43,7 @@ from bsuite.experiments.mountain_car_noise import mountain_car_noise
 from bsuite.experiments.mountain_car_scale import mountain_car_scale
 from bsuite.experiments.umbrella_distract import umbrella_distract
 from bsuite.experiments.umbrella_length import umbrella_length
+from bsuite.experiments.gridworld import gridworld
 
 from bsuite.logging import csv_logging
 from bsuite.logging import sqlite_logging
@@ -80,6 +81,7 @@ EXPERIMENT_NAME_TO_ENVIRONMENT = dict(
     mountain_car_scale=mountain_car_scale.load,
     umbrella_distract=umbrella_distract.load,
     umbrella_length=umbrella_length.load,
+    gridworld=gridworld.load
 )
 
 

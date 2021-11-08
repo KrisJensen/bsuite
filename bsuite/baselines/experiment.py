@@ -39,10 +39,12 @@ def run(agent: base.Agent,
 
   if verbose:
     environment = terminal_logging.wrap_environment(
-        environment, log_every=True)  # pytype: disable=wrong-arg-types
+        environment, log_every=False)  # pytype: disable=wrong-arg-types
 
   for _ in range(num_episodes):
     # Run an episode.
+    
+    
     timestep = environment.reset()
     while not timestep.last():
       # Generate an action from the agent's policy.
@@ -56,3 +58,45 @@ def run(agent: base.Agent,
 
       # Book-keeping.
       timestep = new_timestep
+        
+        
+        
+# def run_vmap(agent: base.Agent,
+#         environment: dm_env.Environment,
+#         num_episodes: int,
+#         verbose: bool = False) -> None:
+#   """Runs an agent on an environment.
+
+#   Note that for bsuite environments, logging is handled internally.
+
+#   Args:
+#     agent: The agent to train and evaluate.
+#     environment: The environment to train on.
+#     num_episodes: Number of episodes to train for.
+#     verbose: Whether to also log to terminal.
+#   """
+
+#   if verbose:
+#     environment = terminal_logging.wrap_environment(
+#         environment, log_every=False)  # pytype: disable=wrong-arg-types
+
+#   for _ in range(num_episodes):
+#     # Run an episode.
+    
+#     def episode(seed):
+#         timestep = environment.reset(seed)
+#         #while not timestep.last():
+#         for jax_loop:
+#           # Generate an action from the agent's policy.
+#           action = agent.select_action(timestep)
+
+#           # Step the environment.
+#           new_timestep = environment.step(action)
+
+#           # Book-keeping.
+#           timestep = new_timestep
+#         return loss
+    
+#     loss = vmap(episode)
+#     agent.update()
+

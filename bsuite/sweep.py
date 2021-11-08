@@ -59,6 +59,7 @@ from bsuite.experiments.mountain_car_noise import sweep as mountain_car_noise_sw
 from bsuite.experiments.mountain_car_scale import sweep as mountain_car_scale_sweep
 from bsuite.experiments.umbrella_distract import sweep as umbrella_distract_sweep
 from bsuite.experiments.umbrella_length import sweep as umbrella_length_sweep
+from bsuite.experiments.gridworld import sweep as gridworld_sweep
 
 import immutabledict
 
@@ -130,6 +131,7 @@ MOUNTAIN_CAR_NOISE = _parse_sweep(mountain_car_noise_sweep)
 MOUNTAIN_CAR_SCALE = _parse_sweep(mountain_car_scale_sweep)
 UMBRELLA_DISTRACT = _parse_sweep(umbrella_distract_sweep)
 UMBRELLA_LENGTH = _parse_sweep(umbrella_length_sweep)
+GRIDWORLD = _parse_sweep(gridworld_sweep)
 
 # Mapping from bsuite id to keyword arguments for the corresponding environment.
 SETTINGS: Mapping[BSuiteId,

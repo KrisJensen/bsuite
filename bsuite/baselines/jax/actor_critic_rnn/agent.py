@@ -1,3 +1,4 @@
+
 # python3
 # pylint: disable=g-bad-file-header
 # Copyright 2019 DeepMind Technologies Limited. All Rights Reserved.
@@ -29,11 +30,15 @@ import jax.numpy as jnp
 import optax
 import rlax
 
+from jax.scipy.special import logsumexp
+
 Logits = jnp.ndarray
 Value = jnp.ndarray
+Pred = jnp.ndarray
+
 LSTMState = Any
 RecurrentPolicyValueNet = Callable[[jnp.ndarray, LSTMState],
-                                   Tuple[Tuple[Logits, Value], LSTMState]]
+                                   Tuple[Tuple[Logits, Value, Pred], LSTMState]]
 
 
 class AgentState(NamedTuple):
@@ -58,14 +63,22 @@ class ActorCriticRNN(base.Agent):
       sequence_length: int,
       discount: float,
       td_lambda: float,
-      entropy_cost: float = 0.,
+      entropy_cost: float = 0.05,
+      pred_cost = 0.05,
   ):
 
     # Define loss function.
     def loss(trajectory: sequence.Trajectory, rnn_unroll_state: LSTMState):
       """"Actor-critic loss."""
-      (logits, values), new_rnn_unroll_state = hk.dynamic_unroll(
+      (logits, values, pred), new_rnn_unroll_state = hk.dynamic_unroll(
           network, trajectory.observations[:, None, ...], rnn_unroll_state)
+      ## logits are the output policy (Tx1xA)
+      ## values are the value estimates (Tx1)
+      ## pred are the state predictions (Tx1xNstate)
+      ##trajectory are the inputs (T+1 x Nin x 1)
+        
+      #print(logits.shape, values.shape, pred.shape, trajectory.observations.shape)
+        
       seq_len = trajectory.actions.shape[0]
       td_errors = rlax.td_lambda(
           v_tm1=values[:-1, 0],
@@ -84,6 +97,14 @@ class ActorCriticRNN(base.Agent):
           rlax.entropy_loss(logits[:-1, 0], jnp.ones(seq_len)))
 
       combined_loss = actor_loss + critic_loss + entropy_cost * entropy_loss
+        
+      if pred.shape[-1] > 1:
+        #pred_loss = rlax.entropy_loss(pred[:, 0, :], trajectory.observations[1:, :pred.shape[-1], 0])
+        pred = pred - logsumexp(pred, axis = -1) #normalize
+        # multiply and normalize
+        pred_loss = pred[:-1, 0, :] * trajectory.observations[1:, :pred.shape[-1], 0]
+        #print(jnp.mean(pred_loss))
+        combined_loss += pred_cost*jnp.mean(pred_loss)
 
       return combined_loss, new_rnn_unroll_state
 
@@ -124,7 +145,7 @@ class ActorCriticRNN(base.Agent):
     """Selects actions according to a softmax policy."""
     key = next(self._rng)
     observation = timestep.observation[None, ...]
-    (logits, _), rnn_state = self._forward(self._state.params, observation,
+    (logits, _, _), rnn_state = self._forward(self._state.params, observation,
                                            self._state.rnn_state)
     self._state = self._state._replace(rnn_state=rnn_state)
     action = jax.random.categorical(key, logits).squeeze()
@@ -147,10 +168,12 @@ class ActorCriticRNN(base.Agent):
 
 def default_agent(obs_spec: specs.Array,
                   action_spec: specs.DiscreteArray,
+                  pred_spec: specs.Array = None,
                   seed: int = 0) -> base.Agent:
   """Creates an actor-critic agent with default hyperparameters."""
 
   hidden_size = 256
+  hidden_size = 60
   initial_rnn_state = hk.LSTMState(
       hidden=jnp.zeros((1, hidden_size), dtype=jnp.float32),
       cell=jnp.zeros((1, hidden_size), dtype=jnp.float32))
@@ -162,21 +185,23 @@ def default_agent(obs_spec: specs.Array,
     lstm = hk.LSTM(hidden_size)
     policy_head = hk.Linear(action_spec.num_values)
     value_head = hk.Linear(1)
+    pred_head = hk.Linear(pred_spec.shape[0])
 
     embedding = torso(flat_inputs)
     embedding, state = lstm(embedding, state)
     logits = policy_head(embedding)
     value = value_head(embedding)
-    return (logits, jnp.squeeze(value, axis=-1)), state
+    pred = pred_head(embedding)
+    return (logits, jnp.squeeze(value, axis=-1), pred), state
 
   return ActorCriticRNN(
       obs_spec=obs_spec,
       action_spec=action_spec,
       network=network,
       initial_rnn_state=initial_rnn_state,
-      optimizer=optax.adam(3e-3),
+      optimizer=optax.adam(1e-3),
       rng=hk.PRNGSequence(seed),
-      sequence_length=32,
+      sequence_length=50,
       discount=0.99,
       td_lambda=0.9,
   )

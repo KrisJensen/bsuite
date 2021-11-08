@@ -26,6 +26,9 @@ from bsuite.baselines import experiment
 from bsuite.baselines.jax import actor_critic_rnn
 from bsuite.baselines.utils import pool
 
+from dm_env import specs
+import numpy as np
+
 # Internal imports.
 
 # Experiment flags.
@@ -51,9 +54,10 @@ def run(bsuite_id: str) -> str:
       logging_mode=FLAGS.logging_mode,
       overwrite=FLAGS.overwrite,
   )
-
+    
+  pred_spec = env.pred_spec() if 'gridworld' in bsuite_id else specs.Array(shape=(1, ), dtype=np.float32, name='pred')
   agent = actor_critic_rnn.default_agent(
-      env.observation_spec(), env.action_spec())
+      env.observation_spec(), env.action_spec(), pred_spec)
 
   num_episodes = FLAGS.num_episodes or getattr(env, 'bsuite_num_episodes')
   experiment.run(

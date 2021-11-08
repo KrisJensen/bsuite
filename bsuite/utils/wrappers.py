@@ -62,6 +62,8 @@ class Logging(dm_env.Environment):
     # Most-recent-episode.
     self._episode_len = 0
     self._episode_return = 0.0
+    
+    self._log_episode = 50
 
   def flush(self):
     if hasattr(self._logger, 'flush'):
@@ -99,7 +101,7 @@ class Logging(dm_env.Environment):
         self._log_bsuite_data()
 
     elif timestep.last():
-      if _logarithmic_logging(self._episode) or self._log_every:
+      if _logarithmic_logging(self._episode) or self._log_every or (self._episode % self._log_episode) == 0:
         self._log_bsuite_data()
 
     # Perform bookkeeping at the end of episodes.
