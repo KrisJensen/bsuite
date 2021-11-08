@@ -18,6 +18,7 @@
 
 from bsuite.baselines import base
 from bsuite.logging import terminal_logging
+import optax
 
 import dm_env
 
@@ -65,51 +66,54 @@ def run_vmap(agent: base.Agent,
         environment: dm_env.Environment,
         num_episodes: int,
         verbose: bool = False) -> None:
-  """Runs an agent on an environment.
+    """Runs an agent on an environment.
 
-  Note that for bsuite environments, logging is handled internally.
+    Note that for bsuite environments, logging is handled internally.
 
-  Args:
+    Args:
     agent: The agent to train and evaluate.
     environment: The environment to train on.
     num_episodes: Number of episodes to train for.
     verbose: Whether to also log to terminal.
-  """
+    """
 
-  if verbose:
-    environment = terminal_logging.wrap_environment(
-        environment, log_every=False)  # pytype: disable=wrong-arg-types
+    if verbose:
+        environment = terminal_logging.wrap_environment(
+            environment, log_every=False)  # pytype: disable=wrong-arg-types
 
-  for _ in range(num_episodes):
-    # Run an episode.
-    
-    def episode(seed):
-        timestep = environment.reset(seed)
-        #while not timestep.last():
-        for jax_loop:
-          # Generate an action from the agent's policy.
-          action = agent.select_action(timestep)
+    optimizer = optax.adam(1e-3)
 
-          # Step the environment.
-          new_timestep = environment.step(action)
-            
-          #add step to buffer
-          agent.update_step(timestep, action, new_timestep) 
+    for _ in range(num_episodes):
+        # Run an episode.
 
-          # Book-keeping.
-          timestep = new_timestep
-            
-        loss = agent.update_episode() #compute loss
-        
-        return loss
-    
-    seed = 123
-    gradients, new_rnn_state = jax.grad(episode, has_aux=True)(seed)
-    
-      updates, new_opt_state = optimizer.update(gradients, state.opt_state)
-      new_params = optax.apply_updates(state.params, updates)
-      return state._replace(
-          params=new_params,
-          opt_state=new_opt_state,
-          rnn_unroll_state=new_rnn_state)
+        def episode(seed):
+            timestep = environment.reset(seed)
+            #while not timestep.last():
+            for jax_loop:
+              # Generate an action from the agent's policy.
+              action = agent.select_action(timestep)
+
+              # Step the environment.
+              new_timestep = environment.step(action)
+
+              #add step to buffer
+              agent.update_step(timestep, action, new_timestep) 
+
+              # Book-keeping.
+              timestep = new_timestep
+
+            loss = agent.update_episode() #compute loss
+
+            return loss
+
+        seed = 123
+        gradients, new_rnn_state = jax.grad(episode, has_aux=True)(seed)
+        updates, new_opt_state = optimizer.update(gradients, state.opt_state)
+        new_params = optax.apply_updates(agent.state.params, updates)
+
+        agent._state = agent._state._replace(
+                              params=new_params,
+                              opt_state=new_opt_state,
+                              rnn_unroll_state=new_rnn_state)
+
 
