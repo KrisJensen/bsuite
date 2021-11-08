@@ -110,6 +110,7 @@ class ActorCriticRNN(base.Agent):
 
     # Transform the loss into a pure function.
     loss_fn = hk.without_apply_rng(hk.transform(loss, apply_rng=True)).apply
+    self._loss_fn = loss_fn
 
     # Define update function.
     @jax.jit
@@ -150,6 +151,21 @@ class ActorCriticRNN(base.Agent):
     self._state = self._state._replace(rnn_state=rnn_state)
     action = jax.random.categorical(key, logits).squeeze()
     return int(action)
+
+  def update_step(self,
+      timestep: dm_env.TimeStep,
+      action: base.Action,
+      new_timestep: dm_env.TimeStep,):
+      """add transition to buffer"""
+    
+      self._buffer.append(timestep, action, new_timestep)
+      if new_timestep.last():
+        self._state = self._state._replace(rnn_state=self._initial_rnn_state)
+        
+  def update_episode(self):
+      trajectory = self._buffer.drain()
+      loss = self._loss_fn(trajectory, self._state.rnn_unroll_state)
+      return loss
 
   def update(
       self,
